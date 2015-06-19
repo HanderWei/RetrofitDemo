@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">豆瓣电影Top250</string>
+    <string name="rating">评分：%1$.1f</string>
+</resources>
