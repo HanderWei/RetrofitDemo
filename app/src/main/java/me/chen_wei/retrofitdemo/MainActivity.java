@@ -97,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
                 if (totalItemsCount == 0) {
                     getResult(0, 20);
                 } else {
-                    getResult(totalItemsCount, 20);
+                    getResult(totalItemsCount - 1, 20);
                 }
             }
         });
@@ -212,9 +212,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         private View getFooterView(int position, View convertView, ViewGroup parent) {
-            View view = LayoutInflater.from(mContext)
-                                      .inflate(R.layout.loading_view, null);
-            return view;
+            if (position >= 250) {
+                return LayoutInflater.from(mContext)
+                                     .inflate(R.layout.loading_view_zero_height, null);
+            }
+            return LayoutInflater.from(mContext)
+                                 .inflate(R.layout.loading_view, null);
         }
 
     }
