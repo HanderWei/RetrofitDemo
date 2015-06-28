@@ -3,6 +3,7 @@ package me.chen_wei.retrofitdemo;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -23,14 +24,14 @@ import butterknife.InjectView;
 import me.chen_wei.retrofitdemo.api.DoubanAPI;
 import me.chen_wei.retrofitdemo.model.Movie;
 import me.chen_wei.retrofitdemo.model.Top250;
-import me.chen_wei.retrofitdemo.view.SwipeRefreshAndLoadLayout;
+import me.chen_wei.retrofitdemo.view.EndlessScrollListener;
 import retrofit.Callback;
 import retrofit.RestAdapter;
 import retrofit.RetrofitError;
 import retrofit.client.Response;
 
 
-public class MainActivity extends AppCompatActivity implements SwipeRefreshAndLoadLayout.OnRefreshListener {
+public class MainActivity extends AppCompatActivity {
 
     public static final String TAG = "MainActivity";
 
@@ -41,7 +42,7 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshAndLo
     ListView mMoviesLv;
 
     @InjectView(R.id.swipe_container)
-    SwipeRefreshAndLoadLayout refreshLayout;
+    SwipeRefreshLayout refreshLayout;
 
     MoviesAdapter mAdapter;
 
@@ -66,12 +67,11 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshAndLo
     }
 
     private void init() {
-        refreshLayout.setOnRefreshListener(this);
-        refreshLayout.setColorScheme(android.R.color.holo_blue_bright,
+        refreshLayout.setEnabled(false);
+        refreshLayout.setColorSchemeResources(android.R.color.holo_blue_bright,
                                               android.R.color.holo_green_light,
                                               android.R.color.holo_orange_light,
                                               android.R.color.holo_red_light);
-        refreshLayout.setmMode(SwipeRefreshAndLoadLayout.Mode.PULL_FROM_END);
         refreshLayout.post(new Runnable() {
             @Override
             public void run() {
@@ -90,9 +90,21 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshAndLo
                                                .build();
         api = restAdapter.create(DoubanAPI.class);
         getResult(0, 20);
+
+        mMoviesLv.setOnScrollListener(new EndlessScrollListener() {
+            @Override
+            public void onLoadMore(int page, int totalItemsCount) {
+                if (totalItemsCount == 0) {
+                    getResult(0, 20);
+                } else {
+                    getResult(totalItemsCount, 20);
+                }
+            }
+        });
     }
 
     private void getResult(int start, int count) {
+        Log.d(TAG, "get result ing...");
         api.getResult(start, count, new Callback<Top250>() {
             @Override
             public void success(Top250 top250, Response response) {
@@ -112,8 +124,16 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshAndLo
                     movie.setGenres(genresStr);
                     movies.add(movie);
                 }
-                refreshLayout.setRefreshing(false);
                 mAdapter.notifyDataSetChanged();
+
+                if (refreshLayout.isRefreshing()) {
+                    refreshLayout.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            refreshLayout.setRefreshing(false);
+                        }
+                    });
+                }
             }
 
             @Override
@@ -129,35 +149,41 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshAndLo
         ButterKnife.reset(this);
     }
 
-    @Override
-    public void onRefresh() {
-
-    }
-
-    @Override
-    public void onLoadMore() {
-        getResult(movies.size(), 20);
-    }
-
     class MoviesAdapter extends BaseAdapter {
+
+        public static final int VIEW_TYPE_LOADING  = 0;
+        public static final int VIEW_TYPE_ACTIVITY = 1;
+
+        @Override
+        public int getViewTypeCount() {
+            return 2;
+        }
+
+        @Override
+        public int getItemViewType(int position) {
+            return (position >= movies.size()) ? VIEW_TYPE_LOADING : VIEW_TYPE_ACTIVITY;
+        }
 
         @Override
         public int getCount() {
-            return null == movies ? 0 : movies.size();
+            return null == movies || movies.size() == 0 ? 0 : movies.size() + 1;
         }
 
         @Override
         public Object getItem(int position) {
-            return movies.get(position);
+            return (getItemViewType(position) == VIEW_TYPE_ACTIVITY) ? movies.get(position) : null;
         }
 
         @Override
         public long getItemId(int position) {
-            return position;
+            return (getItemViewType(position) == VIEW_TYPE_ACTIVITY) ? position : -1;
         }
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
+            if (getItemViewType(position) == VIEW_TYPE_LOADING) {
+                return getFooterView(position, convertView, parent);
+            }
             ViewHolder vh;
             if (convertView == null) {
                 convertView = LayoutInflater.from(mContext)
@@ -184,6 +210,13 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshAndLo
             vh.number.setText((position + 1) + "");
             return convertView;
         }
+
+        private View getFooterView(int position, View convertView, ViewGroup parent) {
+            View view = LayoutInflater.from(mContext)
+                                      .inflate(R.layout.loading_view, null);
+            return view;
+        }
+
     }
 
     class ViewHolder {
