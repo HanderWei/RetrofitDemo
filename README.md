@@ -1,5 +1,6 @@
 # Retrofit Demo
 
+### 示例图片(1.4M):
 ![retrofit.gif](retrofit.gif)
 
 ### 利用[Retrofit](http://square.github.io/retrofit/)获取豆瓣电影Top250信息
